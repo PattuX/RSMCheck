@@ -1,0 +1,1 @@
+E X ((E G ((E(((~c&~b)|~a) U (b|a))&E X ((c&b)&~a))&~E G b)&~E(((~c&~a)|~b) U (c|~b)))|E((~E X c&~E G b) U (E(~a U b)&E G (b&a))))

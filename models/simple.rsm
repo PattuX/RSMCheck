@@ -1,0 +1,112 @@
+{
+    "initial_component" : "c1",
+    "initial_node" : "n11",
+    "components": [
+        {
+            "name": "c1",
+            "nodes": [
+                {
+                    "is_entry": true,
+                    "is_exit": false,
+                    "labels": [
+                        "a"
+                    ],
+                    "name": "n11",
+                    "type": "node"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": true,
+                    "labels": [
+                        "b"
+                    ],
+                    "name": "n12",
+                    "type": "node"
+                }
+            ],
+            "boxes": [
+                {
+                    "name": "b11",
+                    "component": "c2",
+                    "call_nodes": [
+                        "n21"
+                    ],
+                    "return_nodes": [
+                        "n22"
+                    ]
+                }
+            ],
+            "transitions": [
+                {
+                    "source": {
+                        "name": "n11",
+                        "type": "node"
+                    },
+                    "targets": [
+                        {
+                            "box_name": "b11",
+                            "node_name": "n21",
+                            "type": "box_node"
+                        }
+                    ]
+                },
+                {
+                    "source": {
+                        "node_name": "n22",
+                        "box_name": "b11",
+                        "type": "box_node"
+                    },
+                    "targets": [
+                        {
+                            "name": "n12",
+                            "type": "node"
+                        },
+                        {
+                            "node_name": "n21",
+                            "box_name": "b11",
+                            "type": "box_node"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "c2",
+            "nodes": [
+                {
+                    "is_entry": true,
+                    "is_exit": false,
+                    "labels": [
+                        "a"
+                    ],
+                    "name": "n21",
+                    "type": "node"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": true,
+                    "labels": [
+                        "a"
+                    ],
+                    "name": "n22",
+                    "type": "node"
+                }
+            ],
+            "boxes": [],
+            "transitions": [
+                {
+                    "source": {
+                        "name": "n21",
+                        "type": "node"
+                    },
+                    "targets": [
+                        {
+                            "name": "n22",
+                            "type": "node"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

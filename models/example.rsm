@@ -1,0 +1,163 @@
+{
+    "initial_component" : "a1",
+    "initial_node" : "n1",
+    "components": [
+        {
+            "name": "a1",
+            "nodes": [
+                {
+                    "is_entry": true,
+                    "is_exit": false,
+                    "labels": [
+                        "red"
+                    ],
+                    "name": "n1"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": false,
+                    "labels": [
+                        "blue"
+                    ],
+                    "name": "n2"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": false,
+                    "labels": [
+                        "red"
+                    ],
+                    "name": "n3"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": true,
+                    "labels": [
+                        "black"
+                    ],
+                    "name": "n4"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": true,
+                    "labels": [
+                        "blue"
+                    ],
+                    "name": "n5"
+                }
+            ],
+            "boxes": [
+                {
+                    "name": "b",
+                    "component": "a2",
+                    "call_nodes": [
+                        "n6"
+                    ],
+                    "return_nodes": [
+                        "n7"
+                    ]
+                }
+            ],
+            "transitions": [
+                {
+                    "source": {
+                        "name": "n1",
+                        "type": "node"
+                    },
+                    "targets": [
+                        {
+                            "box_name": "b",
+                            "node_name": "n6",
+                            "type": "box_node"
+                        },
+                        {
+                            "name": "n3",
+                            "type": "node"
+                        }
+                    ]
+                },
+                {
+                    "source": {
+                        "name": "n2",
+                        "type": "node"
+                    },
+                    "targets": [
+                        {
+                            "box_name": "b",
+                            "node_name": "n6",
+                            "type": "box_node"
+                        }
+                    ]
+                },
+                {
+                    "source": {
+                        "name": "n3",
+                        "type": "node"
+                    },
+                    "targets": [
+                        {
+                            "name": "n5",
+                            "type": "node"
+                        }
+                    ]
+                },
+                {
+                    "source": {
+                        "box_name": "b",
+                         "node_name": "n7",
+                         "type": "box_node"
+                    },
+                    "targets": [
+                        {
+                            "name": "n2",
+                            "type": "node"
+                        },
+                        {
+                            "name": "n4",
+                            "type": "node"
+                        }
+                    ]
+                }
+
+            ]
+        },
+        {
+            "name": "a2",
+            "nodes": [
+                {
+                    "is_entry": true,
+                    "is_exit": false,
+                    "labels": [
+                        "blue"
+                    ],
+                    "name": "n6",
+                    "type": "node"
+                },
+                {
+                    "is_entry": false,
+                    "is_exit": true,
+                    "labels": [
+                        "blue"
+                    ],
+                    "name": "n7",
+                    "type": "node"
+                }
+            ],
+            "boxes": [],
+            "transitions": [
+                {
+                    "source": {
+                        "name": "n6",
+                        "type": "node"
+                    },
+                    "targets": [
+                        {
+                            "name": "n7",
+                            "type": "node"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
