@@ -1,7 +1,7 @@
 """
 Collection of functions to determine the truth value of a CTL in a node
 """
-
+import random
 from utils import *
 from ctl_parser import get_subformulas
 import logging
@@ -135,7 +135,7 @@ def check_existential_formula_exhaustive(machine, f, finish_early=False):
     return True
 
 
-def check_lazy(machine, ctl):
+def check_lazy(machine, ctl, randomize_nondeterminism=False):
     """
     Function doing lazy checking.
     At first, only the initial context is built and all formulas are deduced as far as possible. If the CTL is not known
@@ -144,6 +144,7 @@ def check_lazy(machine, ctl):
 
     :param machine: the RSM to check against
     :param ctl: the ctl to check
+    :param randomize_nondeterminism: whether to randomize nondeterministic choices in GetNextExpansion
     """
 
     global requested_nodes
@@ -170,7 +171,7 @@ def check_lazy(machine, ctl):
         component_stack = [machine.initial_component]
         double_requests = set()
 
-        result = find_next_necessary_context(machine, machine.initial_node, ctl)
+        result = find_next_necessary_context(machine, machine.initial_node, ctl, randomize_nondeterminism)
         if result is None:
             # could not properly determine next box to determine by standard decision tree
             if not double_requests:
@@ -203,7 +204,7 @@ def check_lazy(machine, ctl):
                   " context relabels)")
 
 
-def find_next_necessary_context(machine, node, ctl):
+def find_next_necessary_context(machine, node, ctl, randomize_nondeterminism):
     """
     For a machine in which CTL is not known in node, figure out which context to build next to deduce CTL in node
     by the following rules:
@@ -244,21 +245,18 @@ def find_next_necessary_context(machine, node, ctl):
                          "CTL: " + str(ctl) + "\nNode: " + str(node))
 
     if isinstance(ctl, CTL.Not) or isinstance(ctl, CTL.Or) or isinstance(ctl, CTL.And):
-        index = 0
-        while True:
-            try:
-                sub = ctl.subformula(index)
-            except IndexError:
-                requested_node_chain[ctl].pop()
-                return None
+        subformulas = ctl.subformulas()
+        if randomize_nondeterminism:
+            random.shuffle(subformulas)
+        for sub in subformulas:
             if sub not in current_component.interpretation[node]:
                 if cn_pair not in requested_nodes[sub]:
                     # reset double requested nodes since cycle detection only works if all subformulas are known
-                    res = find_next_necessary_context(machine, node, sub)
+                    res = find_next_necessary_context(machine, node, sub, randomize_nondeterminism)
                     if res is not None:
                         requested_node_chain[ctl].pop()
                         return res
-            index += 1
+        return None
 
     if node.parent_component.is_exit(node):
         last_component = component_stack[-2]
@@ -280,7 +278,7 @@ def find_next_necessary_context(machine, node, ctl):
             # if not, go to return node, deleting the last stack element, and continue searching
             last_box_elem = box_stack.pop()
             last_comp_elem = component_stack.pop()
-            res = find_next_necessary_context(machine, return_node, ctl)
+            res = find_next_necessary_context(machine, return_node, ctl, randomize_nondeterminism)
             if res is not None:
                 requested_node_chain[ctl].pop()
                 return res
@@ -293,7 +291,7 @@ def find_next_necessary_context(machine, node, ctl):
     if isinstance(node, rsm.BoxNode) and node.is_call_node and not node.is_return_node:
         box_stack.append(node.box)
         component_stack.append(current_component.box_mapping[node.box])
-        res = find_next_necessary_context(machine, node.node, ctl)
+        res = find_next_necessary_context(machine, node.node, ctl, randomize_nondeterminism)
         if res is not None:
             requested_node_chain[ctl].pop()
             return res
@@ -309,15 +307,18 @@ def find_next_necessary_context(machine, node, ctl):
             if sub not in current_component.interpretation[node]:
                 # reset double requested nodes since cycle detection only works if all subformulas are known
                 if cn_pair not in requested_nodes[sub]:
-                    res = find_next_necessary_context(machine, node, sub)
+                    res = find_next_necessary_context(machine, node, sub, randomize_nondeterminism)
                     if res is not None:
                         requested_node_chain[ctl].pop()
                         return res
             successors = node.parent_component.transitions[node]
+            if randomize_nondeterminism:
+                random.shuffle(successors)
             for succ in successors:
+                print("considering", succ, [str(x) for x in successors])
                 if ctl not in current_component.interpretation[succ]:
                     if (current_component, succ) not in requested_nodes[ctl]:
-                        res = find_next_necessary_context(machine, succ, ctl)
+                        res = find_next_necessary_context(machine, succ, ctl, randomize_nondeterminism)
                         if res is not None:
                             requested_node_chain[ctl].pop()
                             return res
@@ -332,22 +333,24 @@ def find_next_necessary_context(machine, node, ctl):
             if sub2 not in current_component.interpretation[node]:
                 # reset double requested nodes since cycle detection only works if all subformulas are known
                 if cn_pair not in requested_nodes[sub2]:
-                    res = find_next_necessary_context(machine, node, sub2)
+                    res = find_next_necessary_context(machine, node, sub2, randomize_nondeterminism)
                     if res is not None:
                         requested_node_chain[ctl].pop()
                         return res
             if sub1 not in current_component.interpretation[node]:
                 # reset double requested nodes since cycle detection only works if all subformulas are known
                 if cn_pair not in requested_nodes[sub1]:
-                    res = find_next_necessary_context(machine, node, sub1)
+                    res = find_next_necessary_context(machine, node, sub1, randomize_nondeterminism)
                     if res is not None:
                         requested_node_chain[ctl].pop()
                         return res
             successors = node.parent_component.transitions[node]
+            if randomize_nondeterminism:
+                random.shuffle(successors)
             for succ in successors:
                 if ctl not in current_component.interpretation[succ]:
                     if (current_component, succ) not in requested_nodes[ctl]:
-                        res = find_next_necessary_context(machine, succ, ctl)
+                        res = find_next_necessary_context(machine, succ, ctl, randomize_nondeterminism)
                         if res is not None:
                             requested_node_chain[ctl].pop()
                             return res
@@ -359,11 +362,13 @@ def find_next_necessary_context(machine, node, ctl):
         if isinstance(path_formula, CTL.X):
             sub = path_formula.subformula(0)
             successors = node.parent_component.transitions[node]
+            if randomize_nondeterminism:
+                random.shuffle(successors)
             for succ in successors:
                 if sub not in current_component.interpretation[succ]:
                     # reset double requested nodes since cycle detection only works if all subformulas are known
                     if (current_component, succ) not in requested_nodes[ctl]:
-                        res = find_next_necessary_context(machine, succ, sub)
+                        res = find_next_necessary_context(machine, succ, sub, randomize_nondeterminism)
                         if res is not None:
                             requested_node_chain[ctl].pop()
                             return res

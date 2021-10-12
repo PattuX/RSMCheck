@@ -60,6 +60,10 @@ parser.add_argument("-witness",
 parser.add_argument("-witness_file",
                     default="witness.log",
                     help="witness file name")
+parser.add_argument("-randomize_nondeterminism",
+                    action="store_true",
+                    help="randomize nondeterministic choices in GetNextExpansion when deciding in which disjunct (for "
+                         "local formulas) or successor (for existential formulas) to continue the search")
 args = parser.parse_args()
 path_to_rsm = args.path_to_rsm
 path_to_ctl = args.path_to_ctl
@@ -68,6 +72,7 @@ do_overwrite = args.overwrite
 do_exhaustive = args.exhaustive
 do_witnesses = args.witness
 witness_file = args.witness_file
+randomize_nondeterminism = args.randomize_nondeterminism
 maxmem = int(args.maxmem)
 maxtime = int(args.maxtime)
 
@@ -115,7 +120,7 @@ for ctl in parse_ctl(path_to_ctl):
     if do_exhaustive:
         check_exhaustive(machine, ctl)
     else:
-        check_lazy(machine, ctl)
+        check_lazy(machine, ctl, randomize_nondeterminism)
 
     result = machine.initial_component.interpretation[machine.initial_node][ctl]
 
