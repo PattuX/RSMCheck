@@ -292,8 +292,6 @@ def find_next_necessary_context(machine, node, ctl, randomize_nondeterminism):
     requested_nodes[ctl].add(cn_pair)
     requested_node_chain[ctl].append(cn_pair)
 
-    print(current_component, node, ctl)
-
     if ctl in current_component.interpretation[node]:
         raise ValueError("Requesting a CTL in a node despite the formula being known in the node\n"
                          "CTL: " + str(ctl) + "\nNode: " + str(node))
