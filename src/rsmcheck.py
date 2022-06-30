@@ -130,10 +130,10 @@ for ctl in parse_ctl(path_to_ctl):
         check_exhaustive(machine, ctl)
     else:
         try:
-            expansion_heuristic = ExpansionHeuristics[expansion_heuristic.upper()]
+            eh = ExpansionHeuristics[expansion_heuristic.upper()]
         except ValueError:
             raise ValueError(f"Invalid expansion heuristic: {expansion_heuristic}")
-        check_lazy(machine, ctl, expansion_heuristic, randomize_nondeterminism)
+        check_lazy(machine, ctl, eh, randomize_nondeterminism)
 
     result = machine.initial_component.interpretation[machine.initial_node][ctl]
 
