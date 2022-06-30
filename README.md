@@ -16,7 +16,7 @@ To run the checker from the ```src``` folder simply run
 
 ```python3 rsmcheck.py path/to/rsm/file path/to/ctl/file```
 
-For your first run, you can check the example RSM of Figure 2 in the paper against the CTL formulas we use to explain the algorithms (see the example CTL file) by running ```python3 rsmcheck.py ../models/example.rsm ../models/example.ctl ``` from ```src```. Since the example is rather small, you can also check other formulas and confirm the correctness of our program by checking the formula on the RSM by hand.
+For your first run, you can check the example RSM of Figure 3 in the paper against the CTL formulas we use to explain the algorithms (see the example CTL file) by running ```python3 rsmcheck.py ../models/example.rsm ../models/example.ctl ``` from ```src```. Since the example is rather small, you can also check other formulas and confirm the correctness of our program by checking the formula on the RSM by hand.
 
 The result will be printed on the command line, as well as logged in the ```log.log``` file that will be created in the ```src``` directory, along with some additional statistics, such as contexts built and runtime.
 
