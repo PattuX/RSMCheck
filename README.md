@@ -22,7 +22,7 @@ The result will be printed on the command line, as well as logged in the ```log.
 
 By adding the ```-witness``` flag a witness path is generated and saved to ```witness.log```.  Note that this is only available for existential formulas which evaluate to ```true```.
 
-By default the lazy approach is used, but you can add the ```-exhaustive``` flag to force using the exhaustive approach.
+By default the lazy approach using GetNextExpansion and FindReason (see the paper for details) is used, but you can add the ```-exhaustive``` flag to force using the exhaustive approach, or the ```-expansion_heuristic``` flag to specify another expansion heuristic. Currently, three heuristics are supported. The default behaviour ```lazy``` uses the GetNextExpansion heuristic, ```random``` chooses a random contextualizable box in each step, and ```all``` corresponds to the ternary expansion heuristic in the evaluation section of the paper, i.e., is the heuristic that unpacks all contextualizable boxes.
 
 For more options, type ```python3 rsmcheck.py -h```. Note that the memory limit option is only available for UNIX-systems.
 

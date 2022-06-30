@@ -48,6 +48,13 @@ parser.add_argument("-overwrite",
 parser.add_argument("-exhaustive",
                     action="store_true",
                     help="use exhaustive checking approach")
+parser.add_argument("-expansion_heuristic",
+                    default="getnext",
+                    help="Choose an expansion heuristic for lazy checking from the following list\n"
+                         "* getnext: as in GetNextExpansion in the paper, search for a box."
+                         "\tAlso enables faster cycle detection\n"
+                         "* random: choose a random contextualizable box\n"
+                         "* all: contextualize all boxes (i.e., exhaustive with ternery checking")
 parser.add_argument("-maxmem", 
                     default=0,
                     help="maximal amount of MB before memout (default: 0 = no limit)")
@@ -64,12 +71,14 @@ parser.add_argument("-randomize_nondeterminism",
                     action="store_true",
                     help="randomize nondeterministic choices in GetNextExpansion when deciding in which disjunct (for "
                          "local formulas) or successor (for existential formulas) to continue the search")
+
 args = parser.parse_args()
 path_to_rsm = args.path_to_rsm
 path_to_ctl = args.path_to_ctl
 logfile = args.logfile
 do_overwrite = args.overwrite
 do_exhaustive = args.exhaustive
+expansion_heuristic = args.expansion_heuristic
 do_witnesses = args.witness
 witness_file = args.witness_file
 randomize_nondeterminism = args.randomize_nondeterminism
@@ -111,16 +120,20 @@ for ctl in parse_ctl(path_to_ctl):
     num_comp = len(machine.contextualized_components)
     machine.remove_unreachable_components()
 
-    logging.debug("Uncontextualized RSM has " + str(num_comp) + " components (of which " +
-                  str(num_comp-len(machine.contextualized_components)) + " are unreachable) and " +
-                  str(sum(len(c.base_component.nodes) for c in machine.contextualized_components)) + " states")
+    logging.debug(f"Uncontextualized RSM has {str(num_comp)} components (of which"
+                  f"{str(num_comp-len(machine.contextualized_components))} are unreachable) and"
+                  f"{str(sum(len(c.base_component.nodes) for c in machine.contextualized_components))} nodes")
 
     start_checking_time = time.process_time()
 
     if do_exhaustive:
         check_exhaustive(machine, ctl)
     else:
-        check_lazy(machine, ctl, randomize_nondeterminism)
+        try:
+            expansion_heuristic = ExpansionHeuristics[expansion_heuristic.upper()]
+        except ValueError:
+            raise ValueError(f"Invalid expansion heuristic: {expansion_heuristic}")
+        check_lazy(machine, ctl, expansion_heuristic, randomize_nondeterminism)
 
     result = machine.initial_component.interpretation[machine.initial_node][ctl]
 

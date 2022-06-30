@@ -246,6 +246,9 @@ class ContextualizedComponent:
         self.parent_rsm = parent_rsm
         self.name = base_component.name + name_appendix
         self.base_component = base_component
+        #TODO to speedup the lookup from Component + context to Contextualized component i could use hashes
+        # this means everything breaks as soon as a context is modified, however currently contexts are never modified.
+        # make the context immutable so that i dont unintentionally break it in the future.
         self.context = context
         self.interpretation = {n: dict() for n in base_component.nodes}
         for ex, ctx in context.items():
@@ -292,7 +295,7 @@ class ContextualizedComponent:
 
         # build new context
         context = dict()
-        for rn in self.base_component.get_return_of_box(box):
+        for rn in box.return_nodes:
             context[rn.node] = dict()
             for ctl, value in self.interpretation[rn].items():
                 if not isinstance(ctl, CTL.E):
@@ -358,10 +361,6 @@ class Component:
         return all entry nodes of the component
     get_exit_nodes()
         return all entry nodes of the component
-    get_return_of_box(box)
-        return all call nodes of the specified box
-    get_call_of_box(box)
-        return all return nodes of the specified box
     make_entry_node(node)
         declare a node as entry node
     makes_exit_node(node)
@@ -440,20 +439,6 @@ class Component:
             raise ValueError("Can't declare node " + str(node) + " entry node because it has outgoing transitions")
         self.nodes[node]["is_exit"] = True
 
-    def get_call_of_box(self, box):
-        result = []
-        for bn in self.box_nodes:
-            if bn.box == box and bn.is_call_node:
-                result.append(bn)
-        return result
-
-    def get_return_of_box(self, box):
-        result = []
-        for bn in self.box_nodes:
-            if bn.box == box and bn.is_return_node:
-                result.append(bn)
-        return result
-
     def add_node(self, node):
         if node.parent_component:
             raise ValueError("Tried adding node that was already contained in component: " + str(node.parent_component))
@@ -468,9 +453,8 @@ class Component:
     def add_box(self, box):
         if box.parent_component:
             raise ValueError("Tried adding node that was already contained in component: " + str(box.parent_component))
-        box.parent_component = self
         self.boxes.append(box)
-        for n in box.call_nodes:
+        for n in box.entry_nodes:
             bn = BoxNode(box, n, is_call=True, is_return=False, name=box.name + "-" + n.name)
             self.call_node_dict[(box, n)] = bn
             self.call_node_name_dict[(box.name, n.name)] = bn
@@ -479,7 +463,7 @@ class Component:
             self.nodes[bn] = {"is_entry": False, "is_exit": False,
                               "labels": n.parent_component.nodes[n]["labels"], "formulas": {}}
             self.transitions[bn] = []
-        for n in box.return_nodes:
+        for n in box.exit_nodes:
             bn = BoxNode(box, n, is_call=False, is_return=True, name=box.name + "-" + n.name)
             self.return_node_dict[(box, n)] = bn
             self.return_node_name_dict[(box.name, n.name)] = bn
@@ -488,6 +472,7 @@ class Component:
             self.nodes[bn] = {"is_entry": False, "is_exit": False,
                               "labels": n.parent_component.nodes[n]["labels"], "formulas": {}}
             self.transitions[bn] = []
+        box.add_parent_component(self)
 
     def add_transition(self, source, target):
         """Adds a transition from source to target while checking for consistency within RSM
@@ -584,7 +569,7 @@ class Component:
             successors = node.parent_component.transitions[node]
             box_successors = []
             if isinstance(node, BoxNode) and node.is_call_node:
-                box_successors = self.get_return_of_box(node.box)
+                box_successors = node.box.return_nodes
 
             for succ in successors + box_successors:
                 if succ not in visited:
@@ -636,20 +621,27 @@ class Box:
         self.component = component
         self.name = name
         self.parent_component = None
+        self.call_nodes = None
+        self.return_nodes = None
         if entry_nodes is None:
-            self.call_nodes = self.component.get_entry_nodes()
+            self.entry_nodes = self.component.get_entry_nodes()
         else:
             for node in entry_nodes:
                 if not component.is_entry(node):
                     raise ValueError("Call nodes of box must be entry nodes of component")
-            self.call_nodes = entry_nodes
+            self.entry_nodes = entry_nodes
         if exit_nodes is None:
-            self.return_nodes = self.component.get_exit_nodes()
+            self.exit_nodes = self.component.get_exit_nodes()
         else:
             for node in exit_nodes:
                 if not component.is_exit(node):
                     raise ValueError("Return nodes of box must be exit nodes of component")
-            self.return_nodes = exit_nodes
+            self.exit_nodes = exit_nodes
+
+    def add_parent_component(self, c):
+        self.parent_component = c
+        self.call_nodes = {self.parent_component.get_call_node(self, en) for en in self.entry_nodes}
+        self.return_nodes = {self.parent_component.get_return_node(self, ex) for ex in self.exit_nodes}
 
     def __str__(self):
         return "box " + str(self.name) + " [ref: " + str(self.component) + "]"

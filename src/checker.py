@@ -6,6 +6,7 @@ from utils import *
 from ctl_parser import get_subformulas
 import logging
 from collections import defaultdict
+from enum import Enum
 
 num_contexts_built = 0
 num_contexts_relabeled = 0
@@ -23,6 +24,12 @@ component_stack = []
 double_requests = set()
 # keep track of formulas which are fully known in the whole RSM
 known_formulas = set()
+
+
+class ExpansionHeuristics(Enum):
+    GETNEXT = 1
+    RANDOM = 2
+    ALL = 3
 
 
 def check_exhaustive(machine, ctl):
@@ -105,8 +112,7 @@ def check_existential_formula_exhaustive(machine, f, finish_early=False):
     for c in machine.contextualized_components:
         for box in c.base_component.boxes:
             ref_component = c.box_mapping[box]
-            return_nodes = c.base_component.get_return_of_box(box)
-            for rn in return_nodes:
+            for rn in box.return_nodes:
                 if f not in ref_component.interpretation[rn.node]:
                     boxes_to_unpack.add((c, box))
                     continue
@@ -135,7 +141,7 @@ def check_existential_formula_exhaustive(machine, f, finish_early=False):
     return True
 
 
-def check_lazy(machine, ctl, randomize_nondeterminism=False):
+def check_lazy(machine, ctl, expansion_heuristic, randomize_nondeterminism=False):
     """
     Function doing lazy checking.
     At first, only the initial context is built and all formulas are deduced as far as possible. If the CTL is not known
@@ -144,6 +150,7 @@ def check_lazy(machine, ctl, randomize_nondeterminism=False):
 
     :param machine: the RSM to check against
     :param ctl: the ctl to check
+    :param expansion_heuristic: expansion heuristic to use when choosing boxes to unpack
     :param randomize_nondeterminism: whether to randomize nondeterministic choices in GetNextExpansion
     """
 
@@ -165,38 +172,83 @@ def check_lazy(machine, ctl, randomize_nondeterminism=False):
 
     # do lazy unpacking
     while ctl not in machine.initial_component.interpretation[machine.initial_node]:
-        requested_nodes = defaultdict(set)
-        requested_node_chain = defaultdict(list)
-        box_stack = []
-        component_stack = [machine.initial_component]
-        double_requests = set()
+        to_contextualize = []
+        # find box(ex) to unpack
+        if expansion_heuristic == ExpansionHeuristics.GETNEXT:
+            # full lazy, one heuristically chosen box
+            requested_nodes = defaultdict(set)
+            requested_node_chain = defaultdict(list)
+            box_stack = []
+            component_stack = [machine.initial_component]
+            double_requests = set()
 
-        result = find_next_necessary_context(machine, machine.initial_node, ctl, randomize_nondeterminism)
-        if result is None:
-            # could not properly determine next box to determine by standard decision tree
-            if not double_requests:
-                # if no double request happened something went horribly wrong
-                raise ValueError("Something went wrong while computing the next box to unpack")
-            else:
-                # otherwise we detected a cycle
-                for (component, node), f in double_requests:
-                    path_formula = f.subformula(0)
-                    if isinstance(path_formula, CTL.G):
-                        # if we found a phi-cycle for EG phi, the CTL is true by definition
-                        component.interpretation[node][f] = True
-                    if isinstance(path_formula, CTL.U):
-                        # here we found an phi1-and-not-phi2-cycle for E phi1 U phi 2
-                        # further we checked all branches while searching the next box toi unpack through backtracking
-                        # this means no phi2 is reachable and thus the CTL is false
-                        component.interpretation[node][f] = False
+            result = find_next_necessary_context(machine, machine.initial_node, ctl, randomize_nondeterminism)
+            to_contextualize = [result] if result is not None else []
         else:
-            last_box, last_component = result
-            context_existed = last_component.contextualize_box(last_box)
-            if context_existed:
-                num_contexts_relabeled += 1
+            contextualizable_boxes = []
+            for c in machine.contextualized_components:
+                for box in c.base_component.boxes:
+                    ref_component = c.box_mapping[box]
+                    for rn in box.return_nodes:
+                        for f in ctl.subformulas():
+                            if f not in ref_component.interpretation[rn.node] \
+                                    and f in c.interpretation[rn]:
+                                contextualizable_boxes.append((box, c))
+            if expansion_heuristic == ExpansionHeuristics.RANDOM:
+                # random lazy, one randomly chosen box
+                to_contextualize = [random.choice(contextualizable_boxes)] if contextualizable_boxes else []
+            elif expansion_heuristic == ExpansionHeuristics.ALL:
+                # exhaustive contextualization but ternary checking
+                to_contextualize = contextualizable_boxes
+
+        if to_contextualize:
+            # unpack box(es)
+            for last_box, last_component in to_contextualize:
+                context_existed = last_component.contextualize_box(last_box)
+                if context_existed:
+                    num_contexts_relabeled += 1
+                else:
+                    num_contexts_built += 1
+        else:
+            if expansion_heuristic == ExpansionHeuristics.GETNEXT:
+                # could not properly determine next box to determine by standard decision tree
+                if not double_requests:
+                    # if no double request happened something went horribly wrong
+                    raise ValueError("Something went wrong while computing the next box to unpack")
+                else:
+                    # otherwise we detected a cycle
+                    for (component, node), f in double_requests:
+                        path_formula = f.subformula(0)
+                        if isinstance(path_formula, CTL.G):
+                            # if we found a phi-cycle for EG phi, the CTL is true by definition
+                            component.interpretation[node][f] = True
+                        if isinstance(path_formula, CTL.U):
+                            # here we found an phi1-and-not-phi2-cycle for E phi1 U phi 2
+                            # further we checked all branches while searching the next box toi unpack through backtracking
+                            # this means no phi2 is reachable and thus the CTL is false
+                            component.interpretation[node][f] = False
             else:
-                num_contexts_built += 1
-            machine.remove_unreachable_components()
+                # if GetNext was not used as expansion heuristic we can only safely do global cycle resolution
+                # for a formula if all its subformulas are known everywhere, so here we find such formulas
+                subformulas = get_subformulas(ctl)
+                # iterate via range to guarantee correct order of depths
+                found_unknown = False
+                for depth in range(max(subformulas.keys()) + 1):
+                    for f in subformulas[depth]:
+                        for c in machine.contextualized_components:
+                            for n in c.base_component.nodes:
+                                if f not in c.interpretation[n]:
+                                    path_formula = f.subformula(0)
+                                    if isinstance(path_formula, CTL.G):
+                                        found_unknown = True
+                                        c.interpretation[n][f] = True
+                                    if isinstance(path_formula, CTL.U):
+                                        found_unknown = True
+                                        c.interpretation[n][f] = False
+                    if found_unknown:
+                        break
+
+        machine.remove_unreachable_components()
         # update machine
         complete_machine_for_all_subformulas(machine, ctl)
 
@@ -263,7 +315,7 @@ def find_next_necessary_context(machine, node, ctl, randomize_nondeterminism):
         last_box = box_stack[-1]
         return_node = None
         # search for corresponding return node
-        for bn in last_box.parent_component.get_return_of_box(last_box):
+        for bn in last_box.return_nodes:
             if bn.node == node:
                 return_node = bn
                 break
@@ -315,7 +367,6 @@ def find_next_necessary_context(machine, node, ctl, randomize_nondeterminism):
             if randomize_nondeterminism:
                 random.shuffle(successors)
             for succ in successors:
-                print("considering", succ, [str(x) for x in successors])
                 if ctl not in current_component.interpretation[succ]:
                     if (current_component, succ) not in requested_nodes[ctl]:
                         res = find_next_necessary_context(machine, succ, ctl, randomize_nondeterminism)

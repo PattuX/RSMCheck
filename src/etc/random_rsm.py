@@ -89,7 +89,7 @@ for c in components:
 
     bn_insertions = []
     for box in c.boxes:
-        bns = c.get_return_of_box(box) + c.get_call_of_box(box)
+        bns = box.call_nodes + box.return_nodes
         insertion_index = randint(0, len(sorted_nodes))
         bn_insertions.append((insertion_index, bns))
     # sort the insertion list by indices, s.t. we insert the box-node furthest back first to not mess up other indices
