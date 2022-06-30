@@ -292,6 +292,8 @@ def find_next_necessary_context(machine, node, ctl, randomize_nondeterminism):
     requested_nodes[ctl].add(cn_pair)
     requested_node_chain[ctl].append(cn_pair)
 
+    print(current_component, node, ctl)
+
     if ctl in current_component.interpretation[node]:
         raise ValueError("Requesting a CTL in a node despite the formula being known in the node\n"
                          "CTL: " + str(ctl) + "\nNode: " + str(node))
@@ -341,15 +343,17 @@ def find_next_necessary_context(machine, node, ctl, randomize_nondeterminism):
     # for call nodes, go into the box and put box on stack
     # for the special case where the box node is both call and return node, we do not go into the box
     if isinstance(node, rsm.BoxNode) and node.is_call_node and not node.is_return_node:
-        box_stack.append(node.box)
-        component_stack.append(current_component.box_mapping[node.box])
-        res = find_next_necessary_context(machine, node.node, ctl, randomize_nondeterminism)
-        if res is not None:
-            requested_node_chain[ctl].pop()
-            return res
-        # if backtracking is necessary, restore original stacks
-        box_stack.pop()
-        component_stack.pop()
+        ref_component = current_component.box_mapping[node.box]
+        if (ref_component, node.node) not in requested_nodes[ctl]:
+            box_stack.append(node.box)
+            component_stack.append(ref_component)
+            res = find_next_necessary_context(machine, node.node, ctl, randomize_nondeterminism)
+            if res is not None:
+                requested_node_chain[ctl].pop()
+                return res
+            # if backtracking is necessary, restore original stacks
+            box_stack.pop()
+            component_stack.pop()
 
     if isinstance(ctl, CTL.E):
         path_formula = ctl.subformula(0)
