@@ -149,7 +149,7 @@ The checking process for a single instance of the 50x50 grid can then be invoked
 
 ### 500 PDS
 
-We also compared PuMoC to RSMCheck on [500 random PDSs and CTL formulas that are provided by PuMoC](https://lipn.univ-paris13.fr/~touili/PuMoC/download.html). The PDSs can be converted into RSMs using either ```pds_to_rsm.py``` or ```mass_convert_pds.py```. Similarly, the 500 corresponding CTL files can be converted via ```mass_convert_ctl.py```. Then the RSMs and CTLs are ready to be checked by our tool as above.
+We also compared PuMoC to RSMCheck on [500 random PDSs and CTL formulas that are provided by PuMoC](https://lipn.univ-paris13.fr/~touili/PuMoC/download.html). The PDSs can be converted into RSMs using either ```pds_to_rsm.py``` or ```mass_convert_pds.py```. Note however that the 500 RSMs created by this will take a total space of around 30GB. Similarly, the 500 corresponding CTL files can be converted via ```mass_convert_ctl.py```. Then the RSMs and CTLs are ready to be checked by our tool as above.
 
 We do not include the RSMs to reduce the size of this sample implementation. If you want all 500 RSMs and want to save te time of converting the PDSs yourself, you can request the RSMs directly from us.
 
